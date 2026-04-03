@@ -25,7 +25,7 @@ import (
 // @version 1.0
 // @description Finance dashboard backend API
 
-// @host localhost:8084
+// @host finance-backend-1zgx.onrender.com
 // @BasePath /api/v1
 
 // @securityDefinitions.apikey BearerAuth
@@ -70,7 +70,7 @@ func run() error {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	
+
 	r.SetTrustedProxies(nil)
 	// --- Routes (includes Swagger route already) ---
 	routes.RegisterRoutes(r)
