@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"os"
-
 	"finance-backend/config"
 	"finance-backend/controllers"
 	"finance-backend/middleware"
