@@ -17,6 +17,7 @@ import (
 
 	_ "finance-backend/docs" // Swagger docs
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -60,8 +61,17 @@ func run() error {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(requestLoggerMiddleware())
+	
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // allow all (ok for assignment)
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+	
 	r.SetTrustedProxies(nil)
-
 	// --- Routes (includes Swagger route already) ---
 	routes.RegisterRoutes(r)
 
