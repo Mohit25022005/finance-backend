@@ -1,62 +1,129 @@
 package services
 
 import (
-	"finance-backend/config"
-	"finance-backend/models"
 	
+	"time"
+
+	"finance-backend/models"
+	"gorm.io/gorm"
 )
 
-func GetDashboardData() (map[string]interface{}, error) {
+type DashboardService interface {
+	GetDashboardData(userID uint) (*DashboardData, error)
+}
 
-	var income float64
-	var expense float64
+type DashboardData struct {
+	TotalIncome    float64                 `json:"total_income"`
+	TotalExpense   float64                 `json:"total_expense"`
+	NetBalance     float64                 `json:"net_balance"`
+	CategoryTotals []CategoryTotal         `json:"category_totals"`
+	RecentActivity []models.RecordResponse `json:"recent_activity"`
+	MonthlyTrends  []MonthlyTrend          `json:"monthly_trends"`
+}
 
-	// totals
-	config.DB.Model(&models.Record{}).
-		Where("type = ?", "income").
-		Select("COALESCE(SUM(amount), 0)").Scan(&income)
+type CategoryTotal struct {
+	Category string  `json:"category"`
+	Total    float64 `json:"total"`
+}
 
-	config.DB.Model(&models.Record{}).
-		Where("type = ?", "expense").
-		Select("COALESCE(SUM(amount), 0)").Scan(&expense)
+type MonthlyTrend struct {
+	Month string  `json:"month"`
+	Type  string  `json:"type"`
+	Total float64 `json:"total"`
+}
 
-	// category-wise totals
-	type CategoryTotal struct {
-		Category string
-		Total    float64
+type dashboardService struct {
+	db *gorm.DB
+}
+
+func NewDashboardService(db *gorm.DB) DashboardService {
+	return &dashboardService{db: db}
+}
+
+func (s *dashboardService) GetDashboardData(userID uint) (*DashboardData, error) {
+	income, err := s.sumByType(userID, models.RecordTypeIncome)
+	if err != nil {
+		return nil, err
 	}
 
-	var categoryTotals []CategoryTotal
+	expense, err := s.sumByType(userID, models.RecordTypeExpense)
+	if err != nil {
+		return nil, err
+	}
 
-	config.DB.Model(&models.Record{}).
+	categoryTotals, err := s.getCategoryTotals(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	recent, err := s.getRecentActivity(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	monthly, err := s.getMonthlyTrends(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DashboardData{
+		TotalIncome:    income,
+		TotalExpense:   expense,
+		NetBalance:     income - expense,
+		CategoryTotals: categoryTotals,
+		RecentActivity: recent,
+		MonthlyTrends:  monthly,
+	}, nil
+}
+
+func (s *dashboardService) sumByType(userID uint, t models.RecordType) (float64, error) {
+	var total float64
+	err := s.db.Model(&models.Record{}).
+		Where("user_id = ? AND type = ?", userID, t).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&total).Error
+	return total, err
+}
+
+func (s *dashboardService) getCategoryTotals(userID uint) ([]CategoryTotal, error) {
+	var totals []CategoryTotal
+	err := s.db.Model(&models.Record{}).
+		Where("user_id = ?", userID).
 		Select("category, SUM(amount) as total").
 		Group("category").
-		Scan(&categoryTotals)
+		Order("total DESC").
+		Scan(&totals).Error
+	return totals, err
+}
 
-	// recent activity (last 5 records)
-	var recent []models.Record
-	config.DB.Order("date desc").Limit(5).Find(&recent)
+func (s *dashboardService) getRecentActivity(userID uint) ([]models.RecordResponse, error) {
+	var records []models.Record
+	err := s.db.Where("user_id = ?", userID).
+		Order("date DESC").
+		Limit(5).
+		Find(&records).Error
 
-	// monthly trends
-	type MonthlyTrend struct {
-		Month  string
-		Total  float64
+	if err != nil {
+		return nil, err
 	}
 
-	var monthly []MonthlyTrend
+	res := make([]models.RecordResponse, len(records))
+	for i, r := range records {
+		res[i] = r.ToResponse()
+	}
+	return res, nil
+}
 
-	config.DB.Model(&models.Record{}).
-		Select("strftime('%Y-%m', date) as month, SUM(amount) as total").
-		Group("month").
-		Order("month asc").
-		Scan(&monthly)
+func (s *dashboardService) getMonthlyTrends(userID uint) ([]MonthlyTrend, error) {
+	var trends []MonthlyTrend
+	start := time.Now().AddDate(0, -12, 0)
 
-	return map[string]interface{}{
-		"total_income":     income,
-		"total_expense":    expense,
-		"net_balance":      income - expense,
-		"category_totals":  categoryTotals,
-		"recent_activity":  recent,
-		"monthly_trends":   monthly,
-	}, nil
+	err := s.db.Model(&models.Record{}).
+		Where("user_id = ? AND date >= ?", userID, start).
+		Select("strftime('%Y-%m', date) as month, type, SUM(amount) as total").
+		Group("month, type").
+		Order("month ASC").
+		Scan(&trends).Error
+
+	return trends, err
 }

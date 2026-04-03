@@ -1,94 +1,159 @@
 package controllers
 
 import (
-	"finance-backend/models"
-	"finance-backend/services"
 	"net/http"
 	"strconv"
+
+	"finance-backend/models"
+	"finance-backend/services"
 
 	"github.com/gin-gonic/gin"
 )
 
-func CreateRecord(c *gin.Context) {
-	var record models.Record
+// CreateRecord godoc
+// @Summary Create record
+// @Description Create a financial record (Admin only)
+// @Tags Records
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param record body models.CreateRecordRequest true "Record Data"
+// @Success 201 {object} models.RecordResponse
+// @Failure 400 {object} map[string]string
+// @Router /records [post]
+func CreateRecord(svc services.RecordService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req models.CreateRecordRequest
 
-	if err := c.ShouldBindJSON(&record); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		userIDVal, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		userID := userIDVal.(uint)
+
+		record, err := svc.Create(userID, req)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, record.ToResponse())
 	}
-
-	err := services.CreateRecord(&record)
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(201, record)
 }
 
-func GetRecords(c *gin.Context) {
+// GetRecords godoc
+// @Summary Get records
+// @Description Get records with filtering and pagination
+// @Tags Records
+// @Security BearerAuth
+// @Produce json
+// @Param type query string false "Record type"
+// @Param category query string false "Category"
+// @Param search query string false "Search"
+// @Param page query int false "Page"
+// @Param limit query int false "Limit"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /records [get]
+func GetRecords(svc services.RecordService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var params models.RecordFilterParams
 
-	typeFilter := c.Query("type")
-	categoryFilter := c.Query("category")
+		if err := c.ShouldBindQuery(&params); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid query params"})
+			return
+		}
 
-	pageStr := c.DefaultQuery("page", "1")
-	limitStr := c.DefaultQuery("limit", "10")
+		records, total, err := svc.GetFiltered(params)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch records"})
+			return
+		}
 
-	page, _ := strconv.Atoi(pageStr)
-	limit, _ := strconv.Atoi(limitStr)
+		responses := make([]models.RecordResponse, len(records))
+		for i, r := range records {
+			responses[i] = r.ToResponse()
+		}
 
-	// safety checks
-	if page < 1 {
-		page = 1
+		c.JSON(http.StatusOK, gin.H{
+			"total":   total,
+			"page":    params.Page,
+			"limit":   params.Limit,
+			"records": responses,
+		})
 	}
-	if limit <= 0 || limit > 100 {
-		limit = 10
-	}
-
-	filters := map[string]string{
-		"type":     typeFilter,
-		"category": categoryFilter,
-	}
-
-	records, err := services.GetRecords(filters, page, limit)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(200, gin.H{
-		"page":    page,
-		"limit":   limit,
-		"records": records,
-	})
 }
 
-func UpdateRecord(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+// UpdateRecord godoc
+// @Summary Update record
+// @Description Update a financial record (Admin only)
+// @Tags Records
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path int true "Record ID"
+// @Param record body models.UpdateRecordRequest true "Updated Data"
+// @Success 200 {object} models.RecordResponse
+// @Failure 400 {object} map[string]string
+// @Router /records/{id} [put]
+func UpdateRecord(svc services.RecordService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			return
+		}
 
-	var record models.Record
-	if err := c.ShouldBindJSON(&record); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
+		var req models.UpdateRecordRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		userID := c.GetUint("user_id")
+
+		record, err := svc.Update(uint(id), userID, req)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, record.ToResponse())
 	}
-
-	err := services.UpdateRecord(uint(id), &record)
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(200, gin.H{"message": "record updated"})
 }
 
-func DeleteRecord(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+// DeleteRecord godoc
+// @Summary Delete record
+// @Description Delete a record (Admin only)
+// @Tags Records
+// @Security BearerAuth
+// @Produce json
+// @Param id path int true "Record ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /records/{id} [delete]
+func DeleteRecord(svc services.RecordService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			return
+		}
 
-	err := services.DeleteRecord(uint(id))
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
+		userID := c.GetUint("user_id")
+
+		if err := svc.Delete(uint(id), userID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "record deleted"})
 	}
-
-	c.JSON(200, gin.H{"message": "record deleted"})
 }

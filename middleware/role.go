@@ -8,13 +8,28 @@ import (
 
 func RoleMiddleware(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userRole, exists := c.Get("role")
+
+		//  Get role from context
+		roleVal, exists := c.Get("role")
 		if !exists {
-			c.JSON(403, gin.H{"error": "no role found"})
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "role not found",
+			})
 			c.Abort()
 			return
 		}
 
+		//  Type assertion
+		userRole, ok := roleVal.(string)
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "invalid role type",
+			})
+			c.Abort()
+			return
+		}
+
+		//  Check allowed roles
 		for _, r := range roles {
 			if r == userRole {
 				c.Next()
@@ -22,7 +37,9 @@ func RoleMiddleware(roles ...string) gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "access denied",
+		})
 		c.Abort()
 	}
 }

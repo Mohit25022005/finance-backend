@@ -1,52 +1,104 @@
 package routes
 
 import (
+	"os"
+
+	"finance-backend/config"
 	"finance-backend/controllers"
 	"finance-backend/middleware"
+	"finance-backend/repository"
+	"finance-backend/services"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func RegisterRoutes(r *gin.Engine) {
 
-	api := r.Group("/api")
-	
+	// Global middleware
+	r.Use(middleware.RateLimitMiddleware())
+
+	// Swagger only in non-production
+	if os.Getenv("APP_ENV") != "production" {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
+
+	// --- Initialize dependencies ---
+	db := config.DB
+
+	userRepo := repository.NewUserRepository(db)
+	recordRepo := repository.NewRecordRepository(db)
+
+	userService := services.NewUserService(userRepo)
+	recordService := services.NewRecordService(recordRepo)
+	dashboardService := services.NewDashboardService(db)
+
+	// --- Routes ---
+	api := r.Group("/api/v1")
+
+	// Public
 	api.POST("/login", controllers.Login)
-	api.Use(middleware.AuthMiddleware())
 
-	api.POST("/records",
+	// Protected
+	auth := api.Group("/")
+	auth.Use(middleware.AuthMiddleware())
+
+	// ----- RECORDS -----
+	auth.POST("/records",
 		middleware.RoleMiddleware("admin"),
-		controllers.CreateRecord)
+		controllers.CreateRecord(recordService),
+	)
 
-	api.GET("/records",
+	auth.GET("/records",
 		middleware.RoleMiddleware("admin", "analyst", "viewer"),
-		controllers.GetRecords)
+		controllers.GetRecords(recordService),
+	)
 
-	api.GET("/dashboard",
+	auth.PUT("/records/:id",
+		middleware.RoleMiddleware("admin"),
+		controllers.UpdateRecord(recordService),
+	)
+
+	auth.DELETE("/records/:id",
+		middleware.RoleMiddleware("admin"),
+		controllers.DeleteRecord(recordService),
+	)
+
+	// ----- DASHBOARD -----
+	auth.GET("/dashboard",
 		middleware.RoleMiddleware("admin", "analyst"),
-		controllers.GetDashboard)
+		controllers.GetDashboard(dashboardService),
+	)
 
-	api.POST("/users",
+	// ----- USERS -----
+	auth.POST("/users",
 		middleware.RoleMiddleware("admin"),
-		controllers.CreateUser)
+		controllers.CreateUser(userService),
+	)
 
-	api.GET("/users",
+	auth.GET("/users",
 		middleware.RoleMiddleware("admin"),
-		controllers.GetUsers)
+		controllers.GetUsers(userService),
+	)
 
-	api.PUT("/users/:id",
+	auth.GET("/users/:id",
 		middleware.RoleMiddleware("admin"),
-		controllers.UpdateUser)
+		controllers.GetUserByID(userService),
+	)
 
-	api.DELETE("/users/:id",
+	auth.PUT("/users/:id",
 		middleware.RoleMiddleware("admin"),
-		controllers.DeleteUser)
+		controllers.UpdateUser(userService),
+	)
 
-	api.PUT("/records/:id",
+	auth.DELETE("/users/:id",
 		middleware.RoleMiddleware("admin"),
-		controllers.UpdateRecord)
+		controllers.DeleteUser(userService),
+	)
 
-	api.DELETE("/records/:id",
-		middleware.RoleMiddleware("admin"),
-		controllers.DeleteRecord)
+	// Health check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 }

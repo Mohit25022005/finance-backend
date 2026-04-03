@@ -1,0 +1,522 @@
+basePath: /api/v1
+definitions:
+  controllers.LoginRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  models.CreateRecordRequest:
+    properties:
+      amount:
+        type: number
+      category:
+        maxLength: 100
+        minLength: 2
+        type: string
+      date:
+        type: string
+      notes:
+        maxLength: 500
+        type: string
+      type:
+        $ref: '#/definitions/models.RecordType'
+    required:
+    - amount
+    - category
+    - date
+    - type
+    type: object
+  models.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+    required:
+    - email
+    - name
+    - role
+    type: object
+  models.RecordResponse:
+    properties:
+      amount:
+        type: number
+      category:
+        type: string
+      created_at:
+        type: string
+      date:
+        type: string
+      id:
+        type: integer
+      notes:
+        type: string
+      type:
+        $ref: '#/definitions/models.RecordType'
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  models.RecordType:
+    enum:
+    - income
+    - expense
+    type: string
+    x-enum-varnames:
+    - RecordTypeIncome
+    - RecordTypeExpense
+  models.Role:
+    enum:
+    - admin
+    - analyst
+    - viewer
+    type: string
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleAnalyst
+    - RoleViewer
+  models.UpdateRecordRequest:
+    properties:
+      amount:
+        type: number
+      category:
+        maxLength: 100
+        minLength: 2
+        type: string
+      date:
+        type: string
+      notes:
+        maxLength: 500
+        type: string
+      type:
+        $ref: '#/definitions/models.RecordType'
+    type: object
+  models.UpdateUserRequest:
+    properties:
+      is_active:
+        type: boolean
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+    type: object
+  models.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+    type: object
+  services.CategoryTotal:
+    properties:
+      category:
+        type: string
+      total:
+        type: number
+    type: object
+  services.DashboardData:
+    properties:
+      category_totals:
+        items:
+          $ref: '#/definitions/services.CategoryTotal'
+        type: array
+      monthly_trends:
+        items:
+          $ref: '#/definitions/services.MonthlyTrend'
+        type: array
+      net_balance:
+        type: number
+      recent_activity:
+        items:
+          $ref: '#/definitions/models.RecordResponse'
+        type: array
+      total_expense:
+        type: number
+      total_income:
+        type: number
+    type: object
+  services.MonthlyTrend:
+    properties:
+      month:
+        type: string
+      total:
+        type: number
+      type:
+        type: string
+    type: object
+host: localhost:8084
+info:
+  contact: {}
+  description: Finance dashboard backend API
+  title: Finance Backend API
+  version: "1.0"
+paths:
+  /dashboard:
+    get:
+      description: Get financial summary and analytics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DashboardData'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get dashboard data
+      tags:
+      - Dashboard
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Login using email and get JWT token
+      parameters:
+      - description: Login Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login user
+      tags:
+      - Auth
+  /records:
+    get:
+      description: Get records with filtering and pagination
+      parameters:
+      - description: Record type
+        in: query
+        name: type
+        type: string
+      - description: Category
+        in: query
+        name: category
+        type: string
+      - description: Search
+        in: query
+        name: search
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get records
+      tags:
+      - Records
+    post:
+      consumes:
+      - application/json
+      description: Create a financial record (Admin only)
+      parameters:
+      - description: Record Data
+        in: body
+        name: record
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateRecordRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.RecordResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create record
+      tags:
+      - Records
+  /records/{id}:
+    delete:
+      description: Delete a record (Admin only)
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete record
+      tags:
+      - Records
+    put:
+      consumes:
+      - application/json
+      description: Update a financial record (Admin only)
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated Data
+        in: body
+        name: record
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateRecordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RecordResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update record
+      tags:
+      - Records
+  /users:
+    get:
+      description: Get all users (Admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.UserResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user (Admin only)
+      parameters:
+      - description: User Data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create user
+      tags:
+      - Users
+  /users/{id}:
+    delete:
+      description: Delete a user (Admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - Users
+    get:
+      description: Get a user by ID (Admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update user details (Admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated Data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: Enter "Bearer <your_token>"
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
