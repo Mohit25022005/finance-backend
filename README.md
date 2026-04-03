@@ -4,7 +4,40 @@
 
 This project is a backend system for a finance dashboard application. It provides APIs to manage users, financial records, and generate summary analytics while enforcing role-based access control.
 
-The system is designed with a clean architecture (Controller → Service → Repository) to ensure scalability, maintainability, and clear separation of concerns.
+The system follows a clean architecture (Controller → Service → Repository) to ensure scalability, maintainability, and separation of concerns.
+
+---
+
+## 🌐 Live Demo
+
+**Live API:**
+https://finance-backend-1zgx.onrender.com
+
+**Swagger Documentation (Recommended for Testing):**
+https://finance-backend-1zgx.onrender.com/swagger/index.html
+
+> ⚠️ Note: The backend is deployed on Render (free tier).
+> If inactive, it may take **30–60 seconds** to respond on the first request.
+
+---
+
+## 🔐 Test Credentials
+
+```
+Admin User:
+Email: admin@example.com
+```
+
+**Steps to Test:**
+
+1. Call `POST /api/v1/login`
+2. Copy the token from response
+3. Click **Authorize 🔒** in Swagger
+4. Enter:
+
+   ```
+   Bearer <your_token>
+   ```
 
 ---
 
@@ -48,7 +81,7 @@ The system is designed with a clean architecture (Controller → Service → Rep
 * JWT-based authentication
 * Protected routes
 * Role-based authorization middleware
-* Ownership checks for records
+* Ownership validation for records
 
 ### 5. Validation & Error Handling
 
@@ -61,7 +94,7 @@ The system is designed with a clean architecture (Controller → Service → Rep
 * Rate limiting middleware
 * Swagger API documentation
 * Soft delete support
-* Logging with slog
+* Structured logging using slog
 
 ---
 
@@ -181,9 +214,9 @@ http://localhost:8084/swagger/index.html
 ## ⚠️ Assumptions & Trade-offs
 
 * SQLite used instead of PostgreSQL for simplicity
-* No password authentication (email-based login only)
+* No password-based authentication (email-based login)
 * AutoMigrate used instead of versioned migrations
-* Basic rate limiting (in-memory)
+* In-memory rate limiting (not distributed)
 
 ---
 
@@ -193,7 +226,7 @@ http://localhost:8084/swagger/index.html
 * Use PostgreSQL for scalability
 * Implement refresh tokens
 * Add caching (Redis)
-* Write unit & integration tests
+* Add unit and integration tests
 
 ---
 
@@ -208,8 +241,9 @@ Mohit S
 This project demonstrates:
 
 * Clean backend architecture
-* Role-based access control
-* Data aggregation & analytics
+* Role-based access control (RBAC)
+* Data aggregation and analytics
 * Proper validation and error handling
+* API documentation and deployment
 
-It is designed to showcase backend engineering fundamentals in a practical and structured way.
+It is designed to showcase backend engineering fundamentals with a practical and structured approach.
