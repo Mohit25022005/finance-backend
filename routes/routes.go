@@ -20,9 +20,7 @@ func RegisterRoutes(r *gin.Engine) {
 	r.Use(middleware.RateLimitMiddleware())
 
 	// Swagger only in non-production
-	if os.Getenv("APP_ENV") != "production" {
-		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	}
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// --- Initialize dependencies ---
 	db := config.DB
