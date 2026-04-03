@@ -18,8 +18,8 @@ func CreateRecord(record *models.Record) error {
 	return repository.CreateRecord(record)
 }
 
-func GetRecords() ([]models.Record, error) {
-	return repository.GetAllRecords()
+func GetRecords(filters map[string]string, page int, limit int) ([]models.Record, error) {
+	return repository.GetFilteredRecords(filters, page, limit)
 }
 
 func UpdateRecord(id uint, updated *models.Record) error {
@@ -54,3 +54,4 @@ func DeleteRecord(id uint) error {
 
 	return repository.DeleteRecord(id)
 }
+

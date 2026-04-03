@@ -27,8 +27,40 @@ func CreateRecord(c *gin.Context) {
 }
 
 func GetRecords(c *gin.Context) {
-	records, _ := services.GetRecords()
-	c.JSON(200, records)
+
+	typeFilter := c.Query("type")
+	categoryFilter := c.Query("category")
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	// safety checks
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+
+	filters := map[string]string{
+		"type":     typeFilter,
+		"category": categoryFilter,
+	}
+
+	records, err := services.GetRecords(filters, page, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"page":    page,
+		"limit":   limit,
+		"records": records,
+	})
 }
 
 func UpdateRecord(c *gin.Context) {

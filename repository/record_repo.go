@@ -29,3 +29,22 @@ func DeleteRecord(id uint) error {
 	return config.DB.Delete(&models.Record{}, id).Error
 }
 
+func GetFilteredRecords(filters map[string]string, page int, limit int) ([]models.Record, error) {
+	var records []models.Record
+
+	query := config.DB.Model(&models.Record{})
+
+	// filtering
+	if filters["type"] != "" {
+		query = query.Where("type = ?", filters["type"])
+	}
+	if filters["category"] != "" {
+		query = query.Where("category = ?", filters["category"])
+	}
+
+	// pagination
+	offset := (page - 1) * limit
+
+	err := query.Limit(limit).Offset(offset).Find(&records).Error
+	return records, err
+}
