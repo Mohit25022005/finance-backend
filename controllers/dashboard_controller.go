@@ -8,6 +8,11 @@ import (
 )
 
 func GetDashboard(c *gin.Context) {
-	data, _ := services.GetSummary()
+	data, err := services.GetDashboardData()
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, data)
 }

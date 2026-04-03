@@ -10,6 +10,9 @@ import (
 func RegisterRoutes(r *gin.Engine) {
 
 	api := r.Group("/api")
+	
+	api.POST("/login", controllers.Login)
+	api.Use(middleware.AuthMiddleware())
 
 	api.POST("/records",
 		middleware.RoleMiddleware("admin"),

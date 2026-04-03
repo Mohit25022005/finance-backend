@@ -8,7 +8,12 @@ import (
 
 func RoleMiddleware(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userRole := c.GetHeader("role")
+		userRole, exists := c.Get("role")
+		if !exists {
+			c.JSON(403, gin.H{"error": "no role found"})
+			c.Abort()
+			return
+		}
 
 		for _, r := range roles {
 			if r == userRole {
