@@ -22,4 +22,28 @@ func RegisterRoutes(r *gin.Engine) {
 	api.GET("/dashboard",
 		middleware.RoleMiddleware("admin", "analyst"),
 		controllers.GetDashboard)
+
+	api.POST("/users",
+		middleware.RoleMiddleware("admin"),
+		controllers.CreateUser)
+
+	api.GET("/users",
+		middleware.RoleMiddleware("admin"),
+		controllers.GetUsers)
+
+	api.PUT("/users/:id",
+		middleware.RoleMiddleware("admin"),
+		controllers.UpdateUser)
+
+	api.DELETE("/users/:id",
+		middleware.RoleMiddleware("admin"),
+		controllers.DeleteUser)
+
+	api.PUT("/records/:id",
+		middleware.RoleMiddleware("admin"),
+		controllers.UpdateRecord)
+
+	api.DELETE("/records/:id",
+		middleware.RoleMiddleware("admin"),
+		controllers.DeleteRecord)
 }
